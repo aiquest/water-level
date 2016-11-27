@@ -16,7 +16,11 @@ from threading import Thread
 import csv
 import codecs
 import numpy as np
+import logging
+import warnings
 
+LOG_FILENAME = '../water-level.log'
+logging.basicConfig(filename=LOG_FILENAME,level=logging.DEBUG)
 
 
 html = Template('''\
@@ -74,8 +78,13 @@ html = Template('''\
 app = Flask(__name__)
 
 
-TANK_HEIGHT = 2000
-MAX_DATA_POINTS = 100
+
+#TANK_HEIGHT = 2000
+SENSOR_DIST_FROM_TANK_TOP = 10 # cm
+SENSOR_DIST_FROM_TANK_BOTTOM = 1800 # cm
+MAX_DATA_POINTS = 1000 # number of points on plot (history)
+UPDATE_INTERVAL = 5 # seconds
+
 # In memory RRDB
 values = deque(maxlen=MAX_DATA_POINTS)
 np.random.seed(0)
@@ -120,13 +129,14 @@ def measure():
 
     while GPIO.input(GPIO_ECHO)==1:
         stop = time.time()
-
+    stop = time.time()
     elapsed = stop-start
     distance = (elapsed * speedSound)/2
 
     return distance
 
-def measure_average():
+
+def measure_average_old():
     # This function takes 3 measurements and
     # returns the average.
 
@@ -137,6 +147,31 @@ def measure_average():
     distance3=measure()
     distance = distance1 + distance2 + distance3
     distance = distance / 3
+    return distance
+
+
+
+def measure_average():
+    # This function takes 3 measurements and
+    # returns the average.
+    
+    distance = None
+    distances = []
+    for i in range(3):
+        try:
+            distances.append(measure())
+            time.sleep(0.1)
+        except Exception, e:
+            warnings.warn(str(e))
+            logging.debug(str(e))
+            raise
+    try:
+        distance = np.mean(distances)
+    except Exception, e:
+        warnings.warn(str(e))
+        logging.info(str(e))
+        raise
+        
     return distance
 
 
@@ -166,12 +201,19 @@ def water_level():
     try:
         while True:
             distance = measure_average()
-            water_lvl = max(0, TANK_HEIGHT - distance) / TANK_HEIGHT
+            #if distance is None:
+            #    distance = last_distance
+            #else:
+            #    last_distance = distance
+            water_lvl = (max(SENSOR_DIST_FROM_TANK_TOP, 
+                                SENSOR_DIST_FROM_TANK_BOTTOM - distance
+                             ) - SENSOR_DIST_FROM_TANK_TOP
+                         ) / SENSOR_DIST_FROM_TANK_BOTTOM
             #print("Distance : {0:5.1f}".format(distance))
             if len(values) > MAX_DATA_POINTS:
                 values.popleft()
             values.append((time.time(), water_lvl))
-            time.sleep(1)
+            time.sleep(UPDATE_INTERVAL)
 
     except KeyboardInterrupt:
         # User pressed CTRL-C
