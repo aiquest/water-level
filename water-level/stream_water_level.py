@@ -265,7 +265,7 @@ def main(argv=None):
     # stock = args.stock  # For html template
     # debug will reload server on code changes
     # 0.0.0.0 means listen on all interfaces
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', debug=True, port=5000)
 
 
 if __name__ == '__main__':
