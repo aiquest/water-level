@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import time
+import os
 import RPi.GPIO as GPIO
 
 from jinja2 import Template
@@ -18,6 +19,13 @@ import codecs
 import numpy as np
 import logging
 import warnings
+
+
+# Set time zone
+TIME_ZONE =  'Asia/Kolkata'
+os.environ['TZ'] = TIME_ZONE
+time.tzset()
+
 
 LOG_FILENAME = '../water-level.log'
 logging.basicConfig(filename=LOG_FILENAME,level=logging.DEBUG)
@@ -81,7 +89,7 @@ app = Flask(__name__)
 
 #TANK_HEIGHT = 2000
 SENSOR_DIST_FROM_TANK_TOP = 10 # cm
-SENSOR_DIST_FROM_TANK_BOTTOM = 1800 # cm
+SENSOR_DIST_FROM_TANK_BOTTOM = 200 # cm
 MAX_DATA_POINTS = 1000 # number of points on plot (history)
 UPDATE_INTERVAL = 5 # seconds
 
@@ -198,6 +206,7 @@ def water_level():
     # GPIO cleanup function. This will also prevent
     # the user seeing lots of unnecessary error
     # messages.
+    last_distance = 0
     try:
         while True:
             distance = measure_average()
@@ -205,10 +214,14 @@ def water_level():
             #    distance = last_distance
             #else:
             #    last_distance = distance
-            water_lvl = (max(SENSOR_DIST_FROM_TANK_TOP, 
-                                SENSOR_DIST_FROM_TANK_BOTTOM - distance
-                             ) - SENSOR_DIST_FROM_TANK_TOP
-                         ) / SENSOR_DIST_FROM_TANK_BOTTOM
+            water_lvl = (max(0, SENSOR_DIST_FROM_TANK_BOTTOM 
+                                - distance 
+                                - SENSOR_DIST_FROM_TANK_TOP
+                            )
+                         ) / (SENSOR_DIST_FROM_TANK_BOTTOM 
+                              - SENSOR_DIST_FROM_TANK_TOP) 
+            
+            #water_lvl = distance
             #print("Distance : {0:5.1f}".format(distance))
             if len(values) > MAX_DATA_POINTS:
                 values.popleft()
