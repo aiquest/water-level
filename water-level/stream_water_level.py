@@ -89,8 +89,8 @@ app = Flask(__name__)
 
 #TANK_HEIGHT = 2000
 SENSOR_DIST_FROM_TANK_TOP = 10 # cm
-SENSOR_DIST_FROM_TANK_BOTTOM = 200 # cm
-MAX_DATA_POINTS = 1000 # number of points on plot (history)
+SENSOR_DIST_FROM_TANK_BOTTOM = 180 # cm
+MAX_DATA_POINTS = 15000 # number of points on plot (history)
 UPDATE_INTERVAL = 5 # seconds
 
 # In memory RRDB
@@ -158,6 +158,12 @@ def measure_average_old():
     return distance
 
 
+def reject_outliers(data, m = 2.):
+    d = np.abs(data - np.median(data))
+    mdev = np.median(d)
+    s = d/mdev if mdev else 0.
+    return list(np.array(data)[s<m])
+
 
 def measure_average():
     # This function takes 3 measurements and
@@ -165,22 +171,39 @@ def measure_average():
     
     distance = None
     distances = []
-    for i in range(3):
+    precision = 2
+    for i in range(50):
         try:
             distances.append(measure())
-            time.sleep(0.1)
+            time.sleep(0.05)
         except Exception, e:
             warnings.warn(str(e))
             logging.debug(str(e))
-            raise
+            #raise
+    distances = reject_outliers(distances)
     try:
         distance = np.mean(distances)
+        # distance = np.median(distances)
     except Exception, e:
         warnings.warn(str(e))
         logging.info(str(e))
-        raise
+        #raise
         
     return distance
+
+
+def holt_winters_second_order_ewma( x, span, beta ):
+    N = len(x)
+    x = np.array(x)
+    span = min(N, span)
+    alpha = 2.0 / ( 1 + span )
+    s = np.zeros(( N, ))
+    b = np.zeros(( N, ))
+    s[0] = x[0]
+    for i in range( 1, N ):
+        s[i] = alpha * x[i] + ( 1 - alpha )*( s[i-1] + b[i-1] )
+        b[i] = beta * ( s[i] - s[i-1] ) + ( 1 - beta ) * b[i-1]
+    return list(np.ravel(s))
 
 
 def water_level():
@@ -207,21 +230,33 @@ def water_level():
     # the user seeing lots of unnecessary error
     # messages.
     last_distance = 0
+    distance_history = deque(maxlen=10)
     try:
         while True:
-            distance = measure_average()
-            #if distance is None:
+            measured_distance = measure_average()
+            if measured_distance is None:
+                measured_distance = last_distance
+            #elif last_distance > 0 and abs(distance - last_distance)/last_distance > .5:
             #    distance = last_distance
-            #else:
-            #    last_distance = distance
-            water_lvl = (max(0, SENSOR_DIST_FROM_TANK_BOTTOM 
-                                - distance 
-                                - SENSOR_DIST_FROM_TANK_TOP
-                            )
-                         ) / (SENSOR_DIST_FROM_TANK_BOTTOM 
-                              - SENSOR_DIST_FROM_TANK_TOP) 
+            else:    
+                last_distance = measured_distance
+            #distance_history.append(measured_distance)
+            #distance = np.mean(distance_history)
+            #distance = holt_winters_second_order_ewma(distance_history, 10, 0.3)
+
+            distance = measured_distance
+            #water_lvl = (max(0, min(SENSOR_DIST_FROM_TANK_BOTTOM 
+            #                        - distance 
+            #                        - SENSOR_DIST_FROM_TANK_TOP,
+            #                        SENSOR_DIST_FROM_TANK_BOTTOM)
+            #                )
+            #             ) / (SENSOR_DIST_FROM_TANK_BOTTOM 
+            #                 - SENSOR_DIST_FROM_TANK_TOP) * 100 
+
+            PRECISION = 1
+            #water_lvl = round(water_lvl, PRECISION)            
             
-            #water_lvl = distance
+            water_lvl = round(distance, PRECISION) 
             #print("Distance : {0:5.1f}".format(distance))
             if len(values) > MAX_DATA_POINTS:
                 values.popleft()
