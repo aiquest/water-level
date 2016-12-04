@@ -92,6 +92,7 @@ SENSOR_DIST_FROM_TANK_TOP = 10 # cm
 SENSOR_DIST_FROM_TANK_BOTTOM = 180 # cm
 MAX_DATA_POINTS = 15000 # number of points on plot (history)
 UPDATE_INTERVAL = 5 # seconds
+N_SAMPLES_PER_INTERVAL = 30
 
 # In memory RRDB
 values = deque(maxlen=MAX_DATA_POINTS)
@@ -172,18 +173,18 @@ def measure_average():
     distance = None
     distances = []
     precision = 2
-    for i in range(50):
+    for i in range(N_SAMPLES_PER_INTERVAL):
         try:
             distances.append(measure())
-            time.sleep(0.05)
+            time.sleep(UPDATE_INTERVAL/float(N_SAMPLES_PER_INTERVAL))
         except Exception, e:
             warnings.warn(str(e))
             logging.debug(str(e))
             #raise
-    distances = reject_outliers(distances)
+    # distances = reject_outliers(distances)
     try:
-        distance = np.mean(distances)
-        # distance = np.median(distances)
+        #distance = np.mean(distances)
+        distance = np.median(distances)
     except Exception, e:
         warnings.warn(str(e))
         logging.info(str(e))
