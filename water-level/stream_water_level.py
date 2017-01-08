@@ -91,8 +91,8 @@ app = Flask(__name__)
 SENSOR_DIST_FROM_TANK_TOP = 10 # cm
 SENSOR_DIST_FROM_TANK_BOTTOM = 180 # cm
 MAX_DATA_POINTS = 15000 # number of points on plot (history)
-UPDATE_INTERVAL = 5 # seconds
-N_SAMPLES_PER_INTERVAL = 30
+UPDATE_INTERVAL = 10 # seconds
+N_SAMPLES_PER_INTERVAL = 20
 
 # In memory RRDB
 values = deque(maxlen=MAX_DATA_POINTS)
