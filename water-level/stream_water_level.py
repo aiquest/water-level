@@ -17,7 +17,7 @@ from threading import Thread
 import csv
 import codecs
 import numpy as np
-import logging
+# import logging
 import warnings
 
 
@@ -28,7 +28,7 @@ time.tzset()
 
 
 LOG_FILENAME = '../water-level.log'
-logging.basicConfig(filename=LOG_FILENAME,level=logging.DEBUG)
+# logging.basicConfig(filename=LOG_FILENAME,level=logging.DEBUG)
 
 
 html = Template('''\
@@ -179,7 +179,7 @@ def measure_average():
             time.sleep(UPDATE_INTERVAL/float(N_SAMPLES_PER_INTERVAL))
         except Exception, e:
             warnings.warn(str(e))
-            logging.debug(str(e))
+            # logging.debug(str(e))
             #raise
     # distances = reject_outliers(distances)
     try:
@@ -187,7 +187,7 @@ def measure_average():
         distance = np.median(distances)
     except Exception, e:
         warnings.warn(str(e))
-        logging.info(str(e))
+        # logging.info(str(e))
         #raise
         
     return distance
